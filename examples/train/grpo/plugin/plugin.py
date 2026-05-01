@@ -19,6 +19,8 @@ from swift.rollout.multi_turn import MultiTurnScheduler, multi_turns
 from swift.template import Template
 from swift.utils import get_logger, to_device
 
+from swift.rewards.rm_plugin import GenRMPlugin, rm_plugins
+
 logger = get_logger()
 """
 TO CUSTOMIZE REWARD FUNCTION:
@@ -34,6 +36,114 @@ TO CUSTOMIZE REWARD FUNCTION:
         --external_plugins /path/to/plugin.py \
         --reward_funcs my_reward_function
 """
+
+
+class SarcasmAccuracyORM(ORM):
+    def __call__(self, completions, label, **kwargs) -> List[float]:
+        """
+        判断反讽检测是否正确 (Yes/No)
+        """
+        rewards = []
+        for completion, sol in zip(completions, label):
+            # A. 提取预测结果
+            # 优先找 <answer> 标签
+            match = re.search(r"<answer>(.*?)</answer>", completion, re.DOTALL | re.IGNORECASE)
+            pred = match.group(1).strip() if match else ""
+            
+            # B. 兜底逻辑：如果没标签，看句尾
+            if not pred:
+                clean_text = completion.strip().lower()
+                if clean_text.endswith("yes") or "yes." in clean_text[-5:]:
+                    pred = "Yes"
+                elif clean_text.endswith("no") or "no." in clean_text[-5:]:
+                    pred = "No"
+
+            # C. 核心判定 (忽略大小写)
+            # sol 是数据集里的 solution 字段 (例如 "No")
+            # 注意防御性编程：sol 可能是 None
+            if sol and pred and pred.lower() == sol.lower():
+                rewards.append(1.0)
+            else:
+                rewards.append(0.0)
+        return rewards
+
+# =========================================================
+# 2. 定义格式奖励类
+# =========================================================
+class FormatORM(ORM):
+    def __call__(self, completions, **kwargs) -> List[float]:
+        """
+        检查是否符合 <think>...</think><answer>...</answer> 格式
+        """
+        rewards = []
+        # pattern = r"<think>.*?</think>\s*<answer>.*?</answer>"
+        pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
+        for completion in completions:
+            if re.search(pattern, completion, re.DOTALL):
+                rewards.append(1.0)
+            else:
+                rewards.append(0.0)
+        return rewards
+
+
+class MyCustomGenRM(GenRMPlugin):
+    
+    def __init__(self, model, template):
+        super().__init__(model, template)
+        # 覆盖官方的 System Prompt，换成你 SFT 训练时的 System Prompt
+        self.system = "You are a strict and logical evaluator model."
+
+    def prepare_rm_inputs(self, inputs: List[Dict]) -> List[Dict]:
+        """
+        覆盖官方的输入准备逻辑，构造你专属的 User Prompt
+        """
+        rm_inputs = []
+        for idx, infer_request in enumerate(inputs):
+            rm_infer_request = deepcopy(infer_request)
+            messages = rm_infer_request.get('messages', [])
+            
+            # 从学生模型的输出中提取对话历史
+            user_msg = next((m['content'] for m in messages if m['role'] == 'user'), "")
+            assistant_msg = next((m['content'] for m in messages if m['role'] == 'assistant'), "")
+            
+            # 清理 <video> <audio> 标签防干扰
+            clean_query = re.sub(r"<video>|<audio>", "", user_msg).strip()
+            
+            # 组装你在 build_genrm_sft.py 中一模一样的 User Prompt！
+            evaluator_prompt = (
+                f"You are an expert logical evaluator. Assess the quality of the reasoning process for a multimodal sarcasm detection task.\n\n"
+                f"[Original Question]\n{clean_query}\n\n"
+                f"[Model Response to Evaluate]\n{assistant_msg}\n\n"
+                f"Task: Output only '1' if the reasoning process in the Model Response is detailed, logically coherent, incorporates multimodal cues (like tone or expression), and contains NO hallucinations (e.g., claiming it cannot see/hear the video). "
+                f"Output only '0' if the reasoning is repetitive, extremely brief, illogical, or contains evasive phrases like 'not visible' or 'I cannot observe'."
+            )
+
+            # 重新封装发给 RM 的 messages
+            rm_messages = [
+                {'role': 'system', 'content': self.system},
+                {'role': 'user', 'content': evaluator_prompt}
+            ]
+            rm_infer_request['messages'] = rm_messages
+            rm_inputs.append(rm_infer_request)
+            
+        return rm_inputs
+
+    @staticmethod
+    def extract_reward(model_output: str) -> float:
+        """
+        覆盖官方的正则提取逻辑，因为你不需要 'Reward: 0.85' 这种格式
+        """
+        model_output = str(model_output).strip()
+        # 你的 SFT 模型只会输出 '1' 或 '0'
+        if '1' in model_output:
+            return 1.0
+        return 0.0
+
+rm_plugins['my_custom_genrm'] = MyCustomGenRM
+
+# 注册
+orms['accuracy_reward'] = SarcasmAccuracyORM
+orms['format_reward'] = FormatORM
 
 
 # For additional reward functions, refer to swift/rewards/orm.py.

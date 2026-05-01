@@ -153,3 +153,29 @@ megatron_output/
 
 # ast template
 ast_index_file.py
+
+# local data / outputs
+raw_data/
+run_logs/
+saved_out/
+saved_output/
+shared_output/
+wandb/
+
+# predictions / temporary files
+*.jsonl
+!examples/**/*.jsonl
+
+# model checkpoints
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+*.tar
+*.tar.gz
+*.zip
+
+# python cache
+__pycache__/
+*.pyc

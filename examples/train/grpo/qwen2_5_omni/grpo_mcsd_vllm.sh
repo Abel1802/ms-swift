@@ -1,0 +1,56 @@
+# 4 * 90GiB
+
+WANDB_API_KEY=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
+DATASET_PATH="/scratch/s5518385/ms_home/ms-swift/jsonl_data_train/mcsd/grpo_train_zh.jsonl"
+VAL_DATASET_PATH="/scratch/s5518385/ms_home/ms-swift/jsonl_data_train/mcsd/grpo_train_zh.jsonl"
+CHECKPOINT_PATH="saved_out/mcsd/sft-reasoning-all/checkpoint-1000-merged"
+RM_PATH="saved_out/my_genrm_3b_mcsd_reasoning/checkpoint-700-merged"
+OUTPUT_DIR="saved_out/mcsd"
+NPROC_PER_NODE=8 \
+ENABLE_AUDIO_OUTPUT=0 \
+USE_AUDIO_IN_VIDEO=0 \
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+swift rlhf \
+    --rlhf_type grpo \
+    --model "$CHECKPOINT_PATH" \
+    --external_plugins examples/train/grpo/plugin/plugin.py \
+    --reward_funcs accuracy_reward format_reward \
+    --reward_model "$RM_PATH" \
+    --reward_model_plugin my_custom_genrm \
+    --reward_weights 1.0 0.5 0.5 \
+    --tuner_type lora \
+    --use_vllm true \
+    --vllm_mode colocate \
+    --vllm_gpu_memory_utilization 0.55 \
+    --vllm_max_model_len 12280 \
+    --vllm_tensor_parallel_size 4 \
+    --lora_rank 8 \
+    --lora_alpha 32 \
+    --target_modules all-linear \
+    --torch_dtype float16 \
+    --dataset "$DATASET_PATH" \
+    --val_dataset "$VAL_DATASET_PATH" \
+    --load_from_cache_file true \
+    --max_completion_length 1048 \
+    --num_train_epochs 3 \
+    --per_device_train_batch_size 2 \
+    --per_device_eval_batch_size 2 \
+    --learning_rate 1e-5 \
+    --gradient_accumulation_steps 4 \
+    --eval_steps 200 \
+    --save_steps 200 \
+    --save_total_limit 50 \
+    --logging_steps 1 \
+    --max_length 12280 \
+    --output_dir "$OUTPUT_DIR/grpo_thinking_all_rm" \
+    --warmup_ratio 0.05 \
+    --dataloader_num_workers 4 \
+    --dataset_num_proc 4 \
+    --num_generations 8 \
+    --temperature 1. \
+    --top_p 0.99 \
+    --top_k 50 \
+    --system 'examples/train/grpo/prompt.txt' \
+    --deepspeed zero3_offload \
+    --log_completions true \
+    --report_to wandb

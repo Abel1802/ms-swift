@@ -663,6 +663,16 @@ class Template(ProcessorMixin):
         signature = inspect.signature(base_model.generate)
         if 'use_model_defaults' in signature.parameters and 'use_model_defaults' not in kwargs:
             kwargs['use_model_defaults'] = False
+
+        for key in [
+            'prompt_id',
+            'request_id',
+            'response_token_ids',
+            'finish_reason',
+            'is_truncated',
+        ]:
+            kwargs.pop(key, None)
+
         return model.generate(*args, **kwargs)
 
     def skip_stop_tokens(self, generate_ids: List[int], is_finished: bool = True) -> List[int]:

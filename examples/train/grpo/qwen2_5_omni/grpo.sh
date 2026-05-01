@@ -1,9 +1,6 @@
 # 4 * 50GiB
-pip install transformers math_verify trl -U
 
-MAX_PIXELS=1003520 \
 NPROC_PER_NODE=4 \
-ENABLE_AUDIO_OUTPUT=1 \
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 swift rlhf \
     --rlhf_type grpo \
