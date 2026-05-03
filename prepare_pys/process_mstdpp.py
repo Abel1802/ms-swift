@@ -139,12 +139,8 @@ def format_prompt_reasoning(sentence):
         f'The utterance is: "{sentence}".\n'
         "Please analyze the speech and visual information in the video.\n"
         "Determine whether the speaker is expressing sarcasm.\n\n"
-        "Step 1: In the <reasoning> tag, summarize your reasoning from three perspectives: "
-        "textual content, speech prosody, and visual facial expressions or gestures. "
-        "For text, analyze only the original utterance. "
-        "For speech, describe only actually audible cues such as pitch, stress, speaking rate, pauses, or laughter. "
-        "For vision, describe only actually visible facial expressions or gestures.\n"
-        'Step 2: In the <answer> tag, output only "Yes" or "No".'
+        "Step 1: In the <reasoning> tag, explain your reasoning from the textual, acoustic, and visual perspectives.\n"
+        "Step 2: In the <answer> tag, output only 'Yes' or 'No'."
     )
 
 
@@ -313,7 +309,7 @@ if __name__ == "__main__":
     process_csv(
         TRAIN_CSV,
         os.path.join(OUTPUT_DIR, "grpo_train_en.jsonl"),
-        is_test=False,
+        is_test=True,
         prompt_type="reasoning",
         modalities="T+A+V",
         require_audio=True,
@@ -323,7 +319,7 @@ if __name__ == "__main__":
     process_csv(
         VALID_CSV,
         os.path.join(OUTPUT_DIR, "grpo_val_en.jsonl"),
-        is_test=False,
+        is_test=True,
         prompt_type="reasoning",
         modalities="T+A+V",
         require_audio=True,
