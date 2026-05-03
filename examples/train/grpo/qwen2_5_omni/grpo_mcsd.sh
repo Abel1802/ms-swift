@@ -1,18 +1,20 @@
 # 4 * 90GiB
+export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 
-WANDB_API_KEY=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
-DATASET_PATH="/scratch/s5518385/ms_home/ms-swift/jsonl_data_train/mcsd/grpo_train_zh.jsonl"
-VAL_DATASET_PATH="/scratch/s5518385/ms_home/ms-swift/jsonl_data_train/mcsd/grpo_train_zh.jsonl"
+DATASET_PATH="/scratch/p311104/ms_home/ms-swift/jsonl_data_train/mcsd/grpo_train_zh.jsonl"
+VAL_DATASET_PATH="/scratch/p311104/ms_home/ms-swift/jsonl_data_train/mcsd/grpo_val_zh_100.jsonl"
 CHECKPOINT_PATH="saved_out/mcsd/sft-reasoning-all/checkpoint-1000-merged"
+RESUME_PATH="saved_out/mcsd/grpo_reasoning_genrm1/v7-20260502-100411/checkpoint-700"
 RM_PATH="saved_out/my_genrm_3b_mcsd_reasoning/checkpoint-700-merged"
 OUTPUT_DIR="saved_out/mcsd"
-NPROC_PER_NODE=8 \
+NPROC_PER_NODE=4 \
 ENABLE_AUDIO_OUTPUT=0 \
 USE_AUDIO_IN_VIDEO=0 \
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
 swift rlhf \
     --rlhf_type grpo \
     --model "$CHECKPOINT_PATH" \
+    --resume_from_checkpoint "$RESUME_PATH" \
     --external_plugins examples/train/grpo/plugin/plugin.py \
     --reward_funcs accuracy_reward format_reward \
     --reward_model "$RM_PATH" \
@@ -26,14 +28,14 @@ swift rlhf \
     --dataset "$DATASET_PATH" \
     --val_dataset "$VAL_DATASET_PATH" \
     --load_from_cache_file true \
-    --max_completion_length 1024 \
+    --max_completion_length 512 \
     --num_train_epochs 4 \
-    --per_device_train_batch_size 2 \
+    --per_device_train_batch_size 2\
     --per_device_eval_batch_size 2 \
     --learning_rate 1e-5 \
     --gradient_accumulation_steps 4 \
-    --eval_steps 100 \
-    --save_steps 100 \
+    --eval_steps 200 \
+    --save_steps 200 \
     --save_total_limit 50 \
     --logging_steps 5 \
     --max_length 12280 \

@@ -1,4 +1,4 @@
-CHECKPOINT_PATH="saved_out/my_genrm_3b_mcsd_reasoning/checkpoint-700"
+CHECKPOINT_PATH="saved_out/mcsd/grpo_reasoning_genrm1/v7-20260502-100411/checkpoint-700"
 CUDA_VISIBLE_DEVICES=0 \
 swift export \
     --adapters "$CHECKPOINT_PATH" \
