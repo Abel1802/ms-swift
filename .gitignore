@@ -179,3 +179,10 @@ wandb/
 # python cache
 __pycache__/
 *.pyc
+
+raw_data/
+run_logs/
+saved_out/
+saved_output/
+shared_output/
+wandb/
